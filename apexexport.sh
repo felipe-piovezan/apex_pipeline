@@ -24,7 +24,7 @@ fi
 echo "Using work directory: $WORK_DIR"
 
 FOLDER=$(basename "$WORK_DIR")
-echo "Using: $FOLDER as tmp folder name"
+echo "Using: '$FOLDER' as tmp folder name"
 
 # Recreating tmp dir
 if [ -d $TMPDIR/tmp/stage_${FOLDER} ]
@@ -85,3 +85,8 @@ rm -rf $TMPDIR/tmp/stage_${FOLDER}/ords*
 echo "Move database"
 rsync --delete --recursive $TMPDIR/tmp/stage_${FOLDER}/* $WORK_DIR/database 2>/dev/null
 rm -rf $TMPDIR/tmp/stage_${FOLDER}/*
+
+echo ""
+echo "###########################################"
+echo "APEX Export to Git completed successfully!"
+echo "###########################################"
