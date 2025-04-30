@@ -3,6 +3,20 @@
 STR_CONN=$1
 WORK_DIR=$2
 
+if [ -z "$STR_CONN" ]
+then
+    while
+        echo -n "STR_CONN (required): "
+        read STR_CONN
+        [[ -z $STR_CONN ]]
+    do true; done
+fi
+
+if [ -z "$WORK_DIR" ]
+then
+    WORK_DIR=$(pwd)
+fi
+
 FOLDER=$(basename "$WORK_DIR")
 
 # Recreating tmp dir
