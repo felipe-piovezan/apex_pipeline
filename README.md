@@ -23,32 +23,48 @@ Edite o arquivo `config.json` para especificar quais aplicações APEX devem ser
       "tablespace": "off",
       "emit_schema": "off"
     },
-    "object_filters": {
-      "include_objects": ["TABLE:USER_*", "VIEW:VW_*"],
-      "exclude_objects": ["TABLE:TEMP_*", "SEQUENCE:SEQ_TEMP_*"]
-    }
+    "object_filter": "LIKE 'PKG_%' AND NOT LIKE 'VW_%'"
   }
 }
 ```
 
-### Filtros de Objetos de Banco
+### Filtro de Objetos de Banco
 
-Os filtros `object_filters` são opcionais e permitem controlar quais objetos do banco são exportados pelo Liquibase:
+O parâmetro `object_filter` é opcional e permite controlar quais objetos do banco são exportados pelo Liquibase. O valor é passado diretamente para o parâmetro `-filter` do SQLcl.
 
-- **`include_objects`**: Array de padrões para incluir objetos específicos (se vazio, inclui todos)
-- **`exclude_objects`**: Array de padrões para excluir objetos específicos
-
-**Formato dos padrões:**
-- `TABLE:PATTERN` - Filtrar tabelas
-- `VIEW:PATTERN` - Filtrar views  
-- `SEQUENCE:PATTERN` - Filtrar sequences
-- `FUNCTION:PATTERN` - Filtrar functions
-- `PROCEDURE:PATTERN` - Filtrar procedures
+**Sintaxe**: O filtro deve ser uma expressão SQL válida que será anexada à consulta de metadados do banco.
 
 **Exemplos:**
-- `"TABLE:USER_*"` - Todas as tabelas que começam com "USER_"
-- `"VIEW:VW_*"` - Todas as views que começam com "VW_"  
-- `"SEQUENCE:SEQ_TEMP_*"` - Todas as sequences que começam com "SEQ_TEMP_"
+```json
+{
+  "database": {
+    "object_filter": "LIKE 'PKG_%' AND NOT LIKE 'VW_%'"
+  }
+}
+```
+
+```json
+{
+  "database": {
+    "object_filter": "IN('FACEID_BENEFICIARIO_PARAM', 'DATABASECHANGELOG_ACTIONS')"
+  }
+}
+```
+
+```json
+{
+  "database": {
+    "object_filter": "NOT LIKE 'TEMP_%'"
+  }
+}
+```
+
+**Operadores suportados:**
+- `LIKE 'PATTERN'` - Coincidência com padrão (% = qualquer string, _ = qualquer caractere)
+- `IN('OBJ1', 'OBJ2')` - Lista específica de objetos
+- `NOT LIKE 'PATTERN'` - Exclusão por padrão
+- `= 'EXACT_NAME'` - Nome exato
+- Combinações com `AND`, `OR`
 
 ## Utilização
 

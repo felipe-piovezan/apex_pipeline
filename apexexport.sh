@@ -33,38 +33,16 @@ IFS=' ' read -ra APP_IDS <<<"$APP_IDS_STR"
 
 echo "Application IDs to export: ${APP_IDS[*]}"
 
-# Parse database object filters from config
-INCLUDE_OBJECTS_STR=$(jq -r '.database.object_filters.include_objects | join(",")' "$CONFIG_FILE")
-EXCLUDE_OBJECTS_STR=$(jq -r '.database.object_filters.exclude_objects | join(",")' "$CONFIG_FILE")
+# Parse database object filter from config
+OBJECT_FILTER=$(jq -r '.database.object_filter // ""' "$CONFIG_FILE")
 
-# Build Liquibase filter parameters for SQLcl
+# Build Liquibase filter parameter
 LB_FILTER=""
-LB_HAS_FILTERS=false
-
-# SQLcl uses -filter parameter with include/exclude syntax
-FILTER_PARTS=""
-
-if [ -n "$INCLUDE_OBJECTS_STR" ] && [ "$INCLUDE_OBJECTS_STR" != "null" ] && [ "$INCLUDE_OBJECTS_STR" != "" ]; then
-  FILTER_PARTS="$FILTER_PARTS include:$INCLUDE_OBJECTS_STR"
-  LB_HAS_FILTERS=true
-  echo "Including database objects: $INCLUDE_OBJECTS_STR"
-fi
-
-if [ -n "$EXCLUDE_OBJECTS_STR" ] && [ "$EXCLUDE_OBJECTS_STR" != "null" ] && [ "$EXCLUDE_OBJECTS_STR" != "" ]; then
-  if [ -n "$FILTER_PARTS" ]; then
-    FILTER_PARTS="$FILTER_PARTS exclude:$EXCLUDE_OBJECTS_STR"
-  else
-    FILTER_PARTS="exclude:$EXCLUDE_OBJECTS_STR"
-  fi
-  LB_HAS_FILTERS=true
-  echo "Excluding database objects: $EXCLUDE_OBJECTS_STR"
-fi
-
-if [ "$LB_HAS_FILTERS" = true ]; then
-  LB_FILTER="-filter $FILTER_PARTS"
-  echo "Using Liquibase filter: $FILTER_PARTS"
+if [ -n "$OBJECT_FILTER" ] && [ "$OBJECT_FILTER" != "null" ] && [ "$OBJECT_FILTER" != "" ]; then
+  LB_FILTER="-filter \"$OBJECT_FILTER\""
+  echo "Using database object filter: $OBJECT_FILTER"
 else
-  echo "No database object filters specified - exporting all objects"
+  echo "No database object filter specified - exporting all objects"
 fi
 
 # Check string connection
@@ -110,14 +88,29 @@ done
 # Export database schema and ORDS
 echo "Exporting database schema and ORDS"
 
-# Generate Liquibase commands
-echo "Exporting all database objects (filtering not supported in this SQLcl version)"
-if [ "$LB_HAS_FILTERS" = true ]; then
-  echo "Note: Object filters specified in config but SQLcl -filter syntax needs verification"
-  echo "Filters: $FILTER_PARTS"
-fi
+# Generate Liquibase commands conditionally
+if [ -n "$LB_FILTER" ]; then
+  echo "Exporting database objects with filter"
 
-sql /nolog <<EOF
+  # Create temporary SQL script with filter to avoid heredoc expansion issues
+  cat >"$TMPDIR/tmp/stage_${FOLDER}/lb_export.sql" <<EOL
+cd $TMPDIR/tmp/stage_${FOLDER}
+connect $STR_CONN
+set ddl storage off
+set ddl partitioning off
+set ddl segment_attributes off
+set ddl tablespace off
+set ddl emit_schema off
+lb generate-schema -split $LB_FILTER
+lb generate-ords-schema
+exit
+EOL
+
+  sql /nolog @"$TMPDIR/tmp/stage_${FOLDER}/lb_export.sql"
+  rm -f "$TMPDIR/tmp/stage_${FOLDER}/lb_export.sql"
+else
+  echo "Exporting all database objects"
+  sql /nolog <<EOF
 cd $TMPDIR/tmp/stage_${FOLDER}
 connect $STR_CONN
 set ddl storage off
@@ -127,7 +120,9 @@ set ddl tablespace off
 set ddl emit_schema off
 lb generate-schema -split
 lb generate-ords-schema
+exit
 EOF
+fi
 
 #Ensure directory exists
 echo "Ensure directory exists"

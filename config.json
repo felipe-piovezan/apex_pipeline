@@ -16,10 +16,6 @@
       "tablespace": "off",
       "emit_schema": "off"
     },
-    "object_filters": {
-      "include_objects": [],
-      "exclude_objects": ["TABLE:FEEDBACK"]
-    }
+    "object_filter": "NOT IN ('FEEDBACK')"
   }
 }
-
