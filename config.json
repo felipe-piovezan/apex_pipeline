@@ -1,0 +1,25 @@
+{
+  "apex": {
+    "applications": [104, 110],
+    "export_options": {
+      "skipExportDate": true,
+      "expOriginalIds": true,
+      "expSupportingObjects": "Y",
+      "expType": "APPLICATION_SOURCE"
+    }
+  },
+  "database": {
+    "ddl_options": {
+      "storage": "off",
+      "partitioning": "off",
+      "segment_attributes": "off",
+      "tablespace": "off",
+      "emit_schema": "off"
+    },
+    "object_filters": {
+      "include_objects": [],
+      "exclude_objects": ["TABLE:FEEDBACK"]
+    }
+  }
+}
+
