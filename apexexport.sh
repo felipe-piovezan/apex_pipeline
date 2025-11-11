@@ -144,16 +144,8 @@ SQLEOF
     done < /etc/resolv.conf
   fi
 
-  # Additional volume mounts for DNS resolution
-  local dns_mounts=""
-  if [ -f /etc/resolv.conf ]; then
-    dns_mounts="-v /etc/resolv.conf:/etc/resolv.conf:ro"
-  fi
-
   docker run --rm \
-    --network host \
     $dns_args \
-    $dns_mounts \
     -v "$TMPDIR/tmp/stage_${FOLDER}:/work" \
     --entrypoint /bin/sh \
     container-registry.oracle.com/database/sqlcl:latest \
@@ -247,16 +239,8 @@ EOL
     done < /etc/resolv.conf
   fi
 
-  # Additional volume mounts for DNS resolution
-  dns_mounts=""
-  if [ -f /etc/resolv.conf ]; then
-    dns_mounts="-v /etc/resolv.conf:/etc/resolv.conf:ro"
-  fi
-
   docker run --rm \
-    --network host \
     $dns_args \
-    $dns_mounts \
     -v "$TMPDIR/tmp/stage_${FOLDER}:/work" \
     --entrypoint /bin/sh \
     container-registry.oracle.com/database/sqlcl:latest \
