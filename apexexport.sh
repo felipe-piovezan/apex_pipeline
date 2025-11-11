@@ -100,8 +100,8 @@ SQLEOF
   if command -v resolvectl &>/dev/null; then
     local current_interface=""
     while IFS= read -r line; do
-      # Track current interface
-      if [[ $line =~ ^Link\ [0-9]+\ \(([^\)]+)\) ]]; then
+      # Track current interface (e.g., "Link 10 (tun0)")
+      if [[ $line =~ ^Link\ [0-9]+\ \((.+)\)$ ]]; then
         current_interface="${BASH_REMATCH[1]}"
       fi
 
@@ -203,8 +203,8 @@ EOL
   if command -v resolvectl &>/dev/null; then
     current_interface=""
     while IFS= read -r line; do
-      # Track current interface
-      if [[ $line =~ ^Link\ [0-9]+\ \(([^\)]+)\) ]]; then
+      # Track current interface (e.g., "Link 10 (tun0)")
+      if [[ $line =~ ^Link\ [0-9]+\ \((.+)\)$ ]]; then
         current_interface="${BASH_REMATCH[1]}"
       fi
 
