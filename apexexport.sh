@@ -75,16 +75,20 @@ echo "Using work directory: $WORK_DIR"
 FOLDER=$(basename "$WORK_DIR")
 echo "Using: '$FOLDER' as tmp folder name"
 
+# Create tmp directory inside workdir instead of using system TMPDIR
+TMP_STAGE_DIR="$WORK_DIR/.tmp/stage_${FOLDER}"
+echo "Using tmp directory: $TMP_STAGE_DIR"
+
 # Recreating tmp dir
-if [ -d $TMPDIR/tmp/stage_${FOLDER} ]; then
-  rm -rf $TMPDIR/tmp/stage_${FOLDER}
+if [ -d "$TMP_STAGE_DIR" ]; then
+  rm -rf "$TMP_STAGE_DIR"
 fi
-mkdir -p $TMPDIR/tmp/stage_${FOLDER}
+mkdir -p "$TMP_STAGE_DIR"
 
 # Helper function to execute SQLcl commands in Docker
 run_sqlcl_docker() {
   local sql_commands="$1"
-  local temp_sql_script="$TMPDIR/tmp/stage_${FOLDER}/temp_sqlcl_$RANDOM.sql"
+  local temp_sql_script="$TMP_STAGE_DIR/temp_sqlcl_$RANDOM.sql"
 
   # Write SQL commands to temporary script (allowing variable expansion)
   cat > "$temp_sql_script" <<SQLEOF
@@ -149,7 +153,7 @@ SQLEOF
 
   docker run --rm \
     $dns_args \
-    -v "$TMPDIR/tmp/stage_${FOLDER}:/work" \
+    -v "$TMP_STAGE_DIR:/work" \
     --entrypoint /bin/sh \
     container-registry.oracle.com/database/sqlcl:latest \
     -c "cd /work && sql /nolog @$(basename "$temp_sql_script")"
@@ -183,7 +187,7 @@ if [ -n "$LB_FILTER" ]; then
   echo "Exporting database objects with filter"
 
   # Create temporary SQL script with filter to avoid heredoc expansion issues
-  cat >"$TMPDIR/tmp/stage_${FOLDER}/lb_export.sql" <<EOL
+  cat >"$TMP_STAGE_DIR/lb_export.sql" <<EOL
 connect $STR_CONN
 set ddl storage off
 set ddl partitioning off
@@ -252,13 +256,13 @@ EOL
 
   docker run --rm \
     $dns_args \
-    -v "$TMPDIR/tmp/stage_${FOLDER}:/work" \
+    -v "$TMP_STAGE_DIR:/work" \
     --entrypoint /bin/sh \
     container-registry.oracle.com/database/sqlcl:latest \
     -c "cd /work && sql /nolog @lb_export.sql"
 
   local exit_code=$?
-  rm -f "$TMPDIR/tmp/stage_${FOLDER}/lb_export.sql"
+  rm -f "$TMP_STAGE_DIR/lb_export.sql"
 
   if [ $exit_code -ne 0 ]; then
     echo "Error: Docker command failed during database schema export with exit code $exit_code"
@@ -288,23 +292,23 @@ rm -rf $WORK_DIR/database/*
 
 # Move Function folder
 echo "Move Function folder"
-rsync --delete --recursive $TMPDIR/tmp/stage_${FOLDER}/function $WORK_DIR/database 2>/dev/null
-rm -rf $TMPDIR/tmp/stage_${FOLDER}/function
+rsync --delete --recursive $TMP_STAGE_DIR/function $WORK_DIR/database 2>/dev/null
+rm -rf $TMP_STAGE_DIR/function
 
 # Move apps folders
 echo "Move apps folders"
-rsync --delete --recursive $TMPDIR/tmp/stage_${FOLDER}/f* $WORK_DIR/apex_apps 2>/dev/null
-rm -rf $TMPDIR/tmp/stage_${FOLDER}/f*
+rsync --delete --recursive $TMP_STAGE_DIR/f* $WORK_DIR/apex_apps 2>/dev/null
+rm -rf $TMP_STAGE_DIR/f*
 
 # Move ORDS interfaces
 echo "Move ORDS interfaces"
-rsync --delete --recursive $TMPDIR/tmp/stage_${FOLDER}/ords* $WORK_DIR/rest_interfaces/ 2>/dev/null
-rm -rf $TMPDIR/tmp/stage_${FOLDER}/ords*
+rsync --delete --recursive $TMP_STAGE_DIR/ords* $WORK_DIR/rest_interfaces/ 2>/dev/null
+rm -rf $TMP_STAGE_DIR/ords*
 
 # Move database
 echo "Move database"
-rsync --delete --recursive $TMPDIR/tmp/stage_${FOLDER}/* $WORK_DIR/database 2>/dev/null
-rm -rf $TMPDIR/tmp/stage_${FOLDER}/*
+rsync --delete --recursive $TMP_STAGE_DIR/* $WORK_DIR/database 2>/dev/null
+rm -rf $TMP_STAGE_DIR/*
 
 echo ""
 echo "###########################################"
