@@ -89,9 +89,22 @@ $sql_commands
 exit
 SQLEOF
 
-  # Build DNS arguments from host's resolv.conf
+  # Build DNS arguments from host's DNS configuration
   local dns_args=""
-  if [ -f /etc/resolv.conf ]; then
+
+  # Try systemd-resolved first (common with VPNs on Linux)
+  if command -v resolvectl &>/dev/null; then
+    while IFS= read -r line; do
+      if [[ $line =~ DNS\ Servers:\ (.+) ]]; then
+        for dns in ${BASH_REMATCH[1]}; do
+          dns_args="$dns_args --dns $dns"
+        done
+      fi
+    done < <(resolvectl status 2>/dev/null || true)
+  fi
+
+  # Fallback to /etc/resolv.conf if no DNS found yet
+  if [ -z "$dns_args" ] && [ -f /etc/resolv.conf ]; then
     while IFS= read -r line; do
       if [[ $line =~ ^nameserver[[:space:]]+([^[:space:]]+) ]]; then
         dns_args="$dns_args --dns ${BASH_REMATCH[1]}"
@@ -99,9 +112,16 @@ SQLEOF
     done < /etc/resolv.conf
   fi
 
+  # Additional volume mounts for DNS resolution
+  local dns_mounts=""
+  if [ -f /etc/resolv.conf ]; then
+    dns_mounts="-v /etc/resolv.conf:/etc/resolv.conf:ro"
+  fi
+
   docker run --rm \
     --network host \
     $dns_args \
+    $dns_mounts \
     -v "$TMPDIR/tmp/stage_${FOLDER}:/work" \
     --entrypoint /bin/sh \
     container-registry.oracle.com/database/sqlcl:latest \
@@ -140,9 +160,22 @@ lb generate-ords-schema
 exit
 EOL
 
-  # Build DNS arguments from host's resolv.conf
+  # Build DNS arguments from host's DNS configuration
   local dns_args=""
-  if [ -f /etc/resolv.conf ]; then
+
+  # Try systemd-resolved first (common with VPNs on Linux)
+  if command -v resolvectl &>/dev/null; then
+    while IFS= read -r line; do
+      if [[ $line =~ DNS\ Servers:\ (.+) ]]; then
+        for dns in ${BASH_REMATCH[1]}; do
+          dns_args="$dns_args --dns $dns"
+        done
+      fi
+    done < <(resolvectl status 2>/dev/null || true)
+  fi
+
+  # Fallback to /etc/resolv.conf if no DNS found yet
+  if [ -z "$dns_args" ] && [ -f /etc/resolv.conf ]; then
     while IFS= read -r line; do
       if [[ $line =~ ^nameserver[[:space:]]+([^[:space:]]+) ]]; then
         dns_args="$dns_args --dns ${BASH_REMATCH[1]}"
@@ -150,9 +183,16 @@ EOL
     done < /etc/resolv.conf
   fi
 
+  # Additional volume mounts for DNS resolution
+  local dns_mounts=""
+  if [ -f /etc/resolv.conf ]; then
+    dns_mounts="-v /etc/resolv.conf:/etc/resolv.conf:ro"
+  fi
+
   docker run --rm \
     --network host \
     $dns_args \
+    $dns_mounts \
     -v "$TMPDIR/tmp/stage_${FOLDER}:/work" \
     --entrypoint /bin/sh \
     container-registry.oracle.com/database/sqlcl:latest \
