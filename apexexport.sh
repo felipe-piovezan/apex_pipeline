@@ -101,7 +101,7 @@ SQLEOF
     local current_interface=""
     while IFS= read -r line; do
       # Track current interface
-      if [[ $line =~ ^Link\ [0-9]+\ \(([^)]+)\) ]]; then
+      if [[ $line =~ ^Link\ [0-9]+\ \(([^\)]+)\) ]]; then
         current_interface="${BASH_REMATCH[1]}"
       fi
 
@@ -204,7 +204,7 @@ EOL
     current_interface=""
     while IFS= read -r line; do
       # Track current interface
-      if [[ $line =~ ^Link\ [0-9]+\ \(([^)]+)\) ]]; then
+      if [[ $line =~ ^Link\ [0-9]+\ \(([^\)]+)\) ]]; then
         current_interface="${BASH_REMATCH[1]}"
       fi
 
