@@ -91,17 +91,23 @@ SQLEOF
 
   # Build DNS arguments from host's DNS configuration
   local dns_args=""
+  local dns_found=()
 
   # Try systemd-resolved first (common with VPNs on Linux)
+  # This extracts DNS servers from ALL interfaces, including VPN (tun0, etc.)
   if command -v resolvectl &>/dev/null; then
     while IFS= read -r line; do
       if [[ $line =~ DNS\ Servers:\ (.+) ]]; then
         for dns in ${BASH_REMATCH[1]}; do
           # Extract only IP address (remove anything after # like #dns.quad9.net)
           dns_ip="${dns%%#*}"
-          # Validate it's a valid IP format (simple check for IPv4)
+          # Validate it's a valid IPv4 format
           if [[ $dns_ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            dns_args="$dns_args --dns $dns_ip"
+            # Avoid duplicates
+            if [[ ! " ${dns_found[@]} " =~ " ${dns_ip} " ]]; then
+              dns_found+=("$dns_ip")
+              dns_args="$dns_args --dns $dns_ip"
+            fi
           fi
         done
       fi
@@ -167,17 +173,23 @@ EOL
 
   # Build DNS arguments from host's DNS configuration
   dns_args=""
+  dns_found=()
 
   # Try systemd-resolved first (common with VPNs on Linux)
+  # This extracts DNS servers from ALL interfaces, including VPN (tun0, etc.)
   if command -v resolvectl &>/dev/null; then
     while IFS= read -r line; do
       if [[ $line =~ DNS\ Servers:\ (.+) ]]; then
         for dns in ${BASH_REMATCH[1]}; do
           # Extract only IP address (remove anything after # like #dns.quad9.net)
           dns_ip="${dns%%#*}"
-          # Validate it's a valid IP format (simple check for IPv4)
+          # Validate it's a valid IPv4 format
           if [[ $dns_ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            dns_args="$dns_args --dns $dns_ip"
+            # Avoid duplicates
+            if [[ ! " ${dns_found[@]} " =~ " ${dns_ip} " ]]; then
+              dns_found+=("$dns_ip")
+              dns_args="$dns_args --dns $dns_ip"
+            fi
           fi
         done
       fi
