@@ -89,8 +89,19 @@ $sql_commands
 exit
 SQLEOF
 
+  # Build DNS arguments from host's resolv.conf
+  local dns_args=""
+  if [ -f /etc/resolv.conf ]; then
+    while IFS= read -r line; do
+      if [[ $line =~ ^nameserver[[:space:]]+([^[:space:]]+) ]]; then
+        dns_args="$dns_args --dns ${BASH_REMATCH[1]}"
+      fi
+    done < /etc/resolv.conf
+  fi
+
   docker run --rm \
     --network host \
+    $dns_args \
     -v "$TMPDIR/tmp/stage_${FOLDER}:/work" \
     --entrypoint /bin/sh \
     container-registry.oracle.com/database/sqlcl:latest \
@@ -129,8 +140,19 @@ lb generate-ords-schema
 exit
 EOL
 
+  # Build DNS arguments from host's resolv.conf
+  local dns_args=""
+  if [ -f /etc/resolv.conf ]; then
+    while IFS= read -r line; do
+      if [[ $line =~ ^nameserver[[:space:]]+([^[:space:]]+) ]]; then
+        dns_args="$dns_args --dns ${BASH_REMATCH[1]}"
+      fi
+    done < /etc/resolv.conf
+  fi
+
   docker run --rm \
     --network host \
+    $dns_args \
     -v "$TMPDIR/tmp/stage_${FOLDER}:/work" \
     --entrypoint /bin/sh \
     container-registry.oracle.com/database/sqlcl:latest \
