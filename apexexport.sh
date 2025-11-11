@@ -92,11 +92,19 @@ SQLEOF
   # Build DNS arguments from host's DNS configuration
   local dns_args=""
   local dns_found=()
+  local vpn_dns=()
+  local public_dns=()
 
   # Try systemd-resolved first (common with VPNs on Linux)
   # This extracts DNS servers from ALL interfaces, including VPN (tun0, etc.)
   if command -v resolvectl &>/dev/null; then
+    local current_interface=""
     while IFS= read -r line; do
+      # Track current interface
+      if [[ $line =~ ^Link\ [0-9]+\ \(([^)]+)\) ]]; then
+        current_interface="${BASH_REMATCH[1]}"
+      fi
+
       if [[ $line =~ DNS\ Servers:\ (.+) ]]; then
         for dns in ${BASH_REMATCH[1]}; do
           # Extract only IP address (remove anything after # like #dns.quad9.net)
@@ -106,12 +114,25 @@ SQLEOF
             # Avoid duplicates
             if [[ ! " ${dns_found[@]} " =~ " ${dns_ip} " ]]; then
               dns_found+=("$dns_ip")
-              dns_args="$dns_args --dns $dns_ip"
+              # Prioritize VPN DNS (tun*, ppp*, wg*, vpn* interfaces) and private IP ranges
+              if [[ $current_interface =~ ^(tun|ppp|wg|vpn) ]] || [[ $dns_ip =~ ^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.) ]]; then
+                vpn_dns+=("$dns_ip")
+              else
+                public_dns+=("$dns_ip")
+              fi
             fi
           fi
         done
       fi
     done < <(resolvectl status 2>/dev/null || true)
+
+    # Build DNS args with VPN DNS first, then public DNS
+    for dns in "${vpn_dns[@]}"; do
+      dns_args="$dns_args --dns $dns"
+    done
+    for dns in "${public_dns[@]}"; do
+      dns_args="$dns_args --dns $dns"
+    done
   fi
 
   # Fallback to /etc/resolv.conf if no DNS found yet
@@ -174,11 +195,19 @@ EOL
   # Build DNS arguments from host's DNS configuration
   dns_args=""
   dns_found=()
+  vpn_dns=()
+  public_dns=()
 
   # Try systemd-resolved first (common with VPNs on Linux)
   # This extracts DNS servers from ALL interfaces, including VPN (tun0, etc.)
   if command -v resolvectl &>/dev/null; then
+    current_interface=""
     while IFS= read -r line; do
+      # Track current interface
+      if [[ $line =~ ^Link\ [0-9]+\ \(([^)]+)\) ]]; then
+        current_interface="${BASH_REMATCH[1]}"
+      fi
+
       if [[ $line =~ DNS\ Servers:\ (.+) ]]; then
         for dns in ${BASH_REMATCH[1]}; do
           # Extract only IP address (remove anything after # like #dns.quad9.net)
@@ -188,12 +217,25 @@ EOL
             # Avoid duplicates
             if [[ ! " ${dns_found[@]} " =~ " ${dns_ip} " ]]; then
               dns_found+=("$dns_ip")
-              dns_args="$dns_args --dns $dns_ip"
+              # Prioritize VPN DNS (tun*, ppp*, wg*, vpn* interfaces) and private IP ranges
+              if [[ $current_interface =~ ^(tun|ppp|wg|vpn) ]] || [[ $dns_ip =~ ^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.) ]]; then
+                vpn_dns+=("$dns_ip")
+              else
+                public_dns+=("$dns_ip")
+              fi
             fi
           fi
         done
       fi
     done < <(resolvectl status 2>/dev/null || true)
+
+    # Build DNS args with VPN DNS first, then public DNS
+    for dns in "${vpn_dns[@]}"; do
+      dns_args="$dns_args --dns $dns"
+    done
+    for dns in "${public_dns[@]}"; do
+      dns_args="$dns_args --dns $dns"
+    done
   fi
 
   # Fallback to /etc/resolv.conf if no DNS found yet
