@@ -1,5 +1,10 @@
 # apex_pipeline
 
+## Pré-requisitos
+
+- **Docker**: Necessário para executar o SQLcl em container. [Instalar Docker](https://docs.docker.com/get-docker/)
+- **jq**: Necessário para processar o arquivo de configuração JSON
+
 ## Configuração
 
 Edite o arquivo `config.json` para especificar quais aplicações APEX devem ser exportadas/deployadas e filtros de objetos de banco:

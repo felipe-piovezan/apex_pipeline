@@ -20,6 +20,12 @@ if ! command -v jq &>/dev/null; then
   exit 1
 fi
 
+# Check if Docker is available
+if ! command -v docker &>/dev/null; then
+  echo "Error: Docker is required but not installed or not in PATH. Please install Docker."
+  exit 1
+fi
+
 # Parse application IDs into a space-separated string, then convert to array
 APP_IDS_STR=$(jq -r '.apex.applications | join(" ")' "$CONFIG_FILE")
 
@@ -72,17 +78,34 @@ if [ -d $TMPDIR/tmp/stage_${FOLDER} ]; then
 fi
 mkdir -p $TMPDIR/tmp/stage_${FOLDER}
 
+# Helper function to execute SQLcl commands in Docker
+run_sqlcl_docker() {
+  local sql_commands="$1"
+  local temp_sql_script="$TMPDIR/tmp/stage_${FOLDER}/temp_sqlcl_$RANDOM.sql"
+
+  # Write SQL commands to temporary script (allowing variable expansion)
+  cat > "$temp_sql_script" <<SQLEOF
+$sql_commands
+exit
+SQLEOF
+
+  docker run --rm \
+    -v "$TMPDIR/tmp/stage_${FOLDER}:/work" \
+    --entrypoint /bin/sh \
+    container-registry.oracle.com/database/sqlcl:latest \
+    -c "cd /work && sql /nolog @$(basename "$temp_sql_script")"
+
+  rm -f "$temp_sql_script"
+}
+
 # extracting objects
 echo "Extracting objects from schema"
 
 # Export each APEX application individually
 for app_id in "${APP_IDS[@]}"; do
   echo "Exporting APEX application: $app_id"
-  sql /nolog <<EOF
-cd $TMPDIR/tmp/stage_${FOLDER}
-connect $STR_CONN
-apex export -applicationid $app_id -skipExportDate -expOriginalIds -expSupportingObjects Y -expType APPLICATION_SOURCE -split
-EOF
+  run_sqlcl_docker "connect $STR_CONN
+apex export -applicationid $app_id -skipExportDate -expOriginalIds -expSupportingObjects Y -expType APPLICATION_SOURCE -split"
 done
 
 # Export database schema and ORDS
@@ -94,7 +117,6 @@ if [ -n "$LB_FILTER" ]; then
 
   # Create temporary SQL script with filter to avoid heredoc expansion issues
   cat >"$TMPDIR/tmp/stage_${FOLDER}/lb_export.sql" <<EOL
-cd $TMPDIR/tmp/stage_${FOLDER}
 connect $STR_CONN
 set ddl storage off
 set ddl partitioning off
@@ -106,22 +128,22 @@ lb generate-ords-schema
 exit
 EOL
 
-  sql /nolog @"$TMPDIR/tmp/stage_${FOLDER}/lb_export.sql"
+  docker run --rm \
+    -v "$TMPDIR/tmp/stage_${FOLDER}:/work" \
+    --entrypoint /bin/sh \
+    container-registry.oracle.com/database/sqlcl:latest \
+    -c "cd /work && sql /nolog @lb_export.sql"
   rm -f "$TMPDIR/tmp/stage_${FOLDER}/lb_export.sql"
 else
   echo "Exporting all database objects"
-  sql /nolog <<EOF
-cd $TMPDIR/tmp/stage_${FOLDER}
-connect $STR_CONN
+  run_sqlcl_docker "connect $STR_CONN
 set ddl storage off
 set ddl partitioning off
 set ddl segment_attributes off
 set ddl tablespace off
 set ddl emit_schema off
 lb generate-schema -split
-lb generate-ords-schema
-exit
-EOF
+lb generate-ords-schema"
 fi
 
 #Ensure directory exists
