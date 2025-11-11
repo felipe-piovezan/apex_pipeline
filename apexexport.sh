@@ -1,5 +1,8 @@
 #!/bin/bash
 # APEX Export to Git
+# Exit on error for critical commands
+set -o pipefail
+
 STR_CONN=$1
 WORK_DIR=$2
 CONFIG_FILE=$3
@@ -95,7 +98,15 @@ SQLEOF
     container-registry.oracle.com/database/sqlcl:latest \
     -c "cd /work && sql /nolog @$(basename "$temp_sql_script")"
 
+  local exit_code=$?
   rm -f "$temp_sql_script"
+
+  if [ $exit_code -ne 0 ]; then
+    echo "Error: Docker command failed with exit code $exit_code"
+    exit $exit_code
+  fi
+
+  return 0
 }
 
 # extracting objects
@@ -133,7 +144,14 @@ EOL
     --entrypoint /bin/sh \
     container-registry.oracle.com/database/sqlcl:latest \
     -c "cd /work && sql /nolog @lb_export.sql"
+
+  local exit_code=$?
   rm -f "$TMPDIR/tmp/stage_${FOLDER}/lb_export.sql"
+
+  if [ $exit_code -ne 0 ]; then
+    echo "Error: Docker command failed during database schema export with exit code $exit_code"
+    exit $exit_code
+  fi
 else
   echo "Exporting all database objects"
   run_sqlcl_docker "connect $STR_CONN
