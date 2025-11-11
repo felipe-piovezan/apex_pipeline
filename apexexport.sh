@@ -97,7 +97,12 @@ SQLEOF
     while IFS= read -r line; do
       if [[ $line =~ DNS\ Servers:\ (.+) ]]; then
         for dns in ${BASH_REMATCH[1]}; do
-          dns_args="$dns_args --dns $dns"
+          # Extract only IP address (remove anything after # like #dns.quad9.net)
+          dns_ip="${dns%%#*}"
+          # Validate it's a valid IP format (simple check for IPv4)
+          if [[ $dns_ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            dns_args="$dns_args --dns $dns_ip"
+          fi
         done
       fi
     done < <(resolvectl status 2>/dev/null || true)
@@ -161,14 +166,19 @@ exit
 EOL
 
   # Build DNS arguments from host's DNS configuration
-  local dns_args=""
+  dns_args=""
 
   # Try systemd-resolved first (common with VPNs on Linux)
   if command -v resolvectl &>/dev/null; then
     while IFS= read -r line; do
       if [[ $line =~ DNS\ Servers:\ (.+) ]]; then
         for dns in ${BASH_REMATCH[1]}; do
-          dns_args="$dns_args --dns $dns"
+          # Extract only IP address (remove anything after # like #dns.quad9.net)
+          dns_ip="${dns%%#*}"
+          # Validate it's a valid IP format (simple check for IPv4)
+          if [[ $dns_ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            dns_args="$dns_args --dns $dns_ip"
+          fi
         done
       fi
     done < <(resolvectl status 2>/dev/null || true)
@@ -184,7 +194,7 @@ EOL
   fi
 
   # Additional volume mounts for DNS resolution
-  local dns_mounts=""
+  dns_mounts=""
   if [ -f /etc/resolv.conf ]; then
     dns_mounts="-v /etc/resolv.conf:/etc/resolv.conf:ro"
   fi
