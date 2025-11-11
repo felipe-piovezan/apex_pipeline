@@ -90,6 +90,7 @@ exit
 SQLEOF
 
   docker run --rm \
+    --network host \
     -v "$TMPDIR/tmp/stage_${FOLDER}:/work" \
     --entrypoint /bin/sh \
     container-registry.oracle.com/database/sqlcl:latest \
@@ -129,6 +130,7 @@ exit
 EOL
 
   docker run --rm \
+    --network host \
     -v "$TMPDIR/tmp/stage_${FOLDER}:/work" \
     --entrypoint /bin/sh \
     container-registry.oracle.com/database/sqlcl:latest \
